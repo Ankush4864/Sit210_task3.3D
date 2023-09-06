@@ -1,3 +1,8 @@
+//SIT 210
+//Task - 3.3D
+//Name - Ankush Singla
+//Student ID: 2210994864 
+// Include necessary libraries for MQTT and Wi-Fi based on the board we're using
 #include <ArduinoMqttClient.h>
 #if defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_SAMD_NANO_33_IOT) || defined(ARDUINO_AVR_UNO_WIFI_REV2)
 #include <WiFiNINA.h>
@@ -9,46 +14,45 @@
 #include <WiFi.h>
 #endif
 
-//#include "arduino_secrets.h"
-///////please enter your sensitive data in the Secret tab/arduino_secrets.h
-char ssid[] = "Ankush";    // your network SSID (name)
-char pass[] = "12345678";    // your network password (use for WPA, or use as key for WEP)
+// Define our Wi-Fi network credentials
+char ssid[] = "Ankush";    // our network SSID (name)
+char pass[] = "12345678";   // our network password (use for WPA, or use as key for WEP)
 
-// To connect with SSL/TLS:
-// 1) Change WiFiClient to WiFiSSLClient.
-// 2) Change port value from 1883 to 8883.
-// 3) Change broker value to a server with a known SSL/TLS root certificate
-//    flashed in the WiFi module.
-
+// Define pins for the ultrasonic sensor
 const int trigPin = 2;
 const int echoPin = 3;
 
+// Variables for measuring distance
 float duration, distance;
 
+// Create a Wi-Fi client and an MQTT client
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
 
+// Define MQTT broker information
 const char broker[] = "broker.mqttdashboard.com";
-int        port     = 1883;
-const char topic[]  = "SIT210/waves";
+int port = 1883;
+const char topic[] = "SIT210/waves";
 
+// Define the time interval for sending MQTT messages
 const long interval = 1000;
 unsigned long previousMillis = 0;
 
+// Counter to keep track of the number of messages sent
 int count = 0;
 
 void setup() {
-  //Initialize serial and wait for port to open:
+  // Initialize the serial communication for debugging
   Serial.begin(9600);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
 
-  // attempt to connect to WiFi network:
+  // Attempt to connect to the Wi-Fi network
   Serial.print("Attempting to connect to WPA SSID: ");
   Serial.println(ssid);
   while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
-    // failed, retry
+    // If Wi-Fi connection fails, keep retrying
     Serial.print(".");
     delay(5000);
   }
@@ -56,20 +60,14 @@ void setup() {
   Serial.println("You're connected to the network");
   Serial.println();
 
-  // You can provide a unique client ID, if not set the library uses Arduino-millis()
-  // Each client must have a unique client ID
-  // mqttClient.setId("clientId");
-
-  // You can provide a username and password for authentication
-  // mqttClient.setUsernamePassword("username", "password");
-
+  // Attempt to connect to the MQTT broker
   Serial.print("Attempting to connect to the MQTT broker: ");
   Serial.println(broker);
 
   if (!mqttClient.connect(broker, port)) {
+    // If MQTT connection fails, print an error message and stop
     Serial.print("MQTT connection failed! Error code = ");
     Serial.println(mqttClient.connectError());
-
     while (1);
   }
 
@@ -78,42 +76,48 @@ void setup() {
 }
 
 void loop() {
-  // call poll() regularly to allow the library to send MQTT keep alives which
-  // avoids being disconnected by the broker
+  // Poll the MQTT client for incoming messages
   mqttClient.poll();
 
-  // to avoid having delays in loop, we'll use the strategy from BlinkWithoutDelay
-  // see: File -> Examples -> 02.Digital -> BlinkWithoutDelay for more info
+  // Get the current time
   unsigned long currentMillis = millis();
 
-  if (currentMillis - previousMillis >= interval)
-  {
-    // save the last time a message was sent
+  if (currentMillis - previousMillis >= interval) {
+    // Save the last time a message was sent
     previousMillis = currentMillis;
 
+    // Trigger the ultrasonic sensor to measure distance
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
     digitalWrite(trigPin, HIGH);
     delayMicroseconds(10);
     digitalWrite(trigPin, LOW);
 
+    // Measure the duration of the pulse from the ultrasonic sensor
     duration = pulseIn(echoPin, HIGH);
+
+    // Calculate the distance based on the duration
     distance = (duration * .0343) / 2;
+
+    // Print the distance to the serial monitor for debugging
     Serial.print("Distance: ");
     Serial.println(distance);
-    if (distance < 12)
-    {
-      // send message, the Print interface can be used to set the message contents
+
+    // If the distance is less than 12 units, send an MQTT message
+    if (distance < 12) {
+      // Begin composing an MQTT message
       mqttClient.beginMessage(topic);
       mqttClient.print("Ankush Singla : Wave is detected, ");
       mqttClient.print("Distance: ");
       mqttClient.print(distance);
+      // End and send the MQTT message
       mqttClient.endMessage();
       delay(1000);
     }
 
     Serial.println();
 
+    // Increment the message count
     count++;
   }
 }
